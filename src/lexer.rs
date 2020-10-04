@@ -8,6 +8,9 @@ pub enum Token {
     Number(f64),
     Literal(String),
     Str(String),
+    RParenthesis,
+    LParenthesis,
+
     If,
 
     Add, Sub, Mul, Div,
@@ -49,6 +52,7 @@ impl Lexer {
 
         while let Some(c) = self.current() {
             match c {
+                '(' | ')' => break,
                 _ if is_operator(c) || is_whitespace(c) => break,
                 _ => literal.push(c)
             }
@@ -136,6 +140,8 @@ impl Lexer {
         let c = self.chars[self.index];
 
         match c {
+            '(' => { self.step(); Ok(Token::RParenthesis) }
+            ')' => { self.step(); Ok(Token::LParenthesis) },
             '"' => self.read_string(),
             '0'..='9' | '.' => Ok(self.read_number()),
             _ if is_operator(c) => self.read_operator(),

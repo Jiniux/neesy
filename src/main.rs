@@ -3,8 +3,10 @@ use std::io::BufRead;
 
 mod lexer;
 
+use lexer::Lexer;
+
 fn process(buf : String) {
-    let mut lexer = lexer::Lexer::new(buf);
+    let mut lexer = Lexer::new(buf);
 
     while let Some(token) = lexer.next().unwrap() {
         println!("{:?}", token)

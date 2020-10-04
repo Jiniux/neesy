@@ -1,0 +1,7 @@
+[package]
+name = "neesy"
+version = "0.1.0"
+authors = ["Jiniux <53437303+Jiniux@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]

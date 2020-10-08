@@ -1,3 +1,8 @@
+#[derive(Debug)]
+pub enum Operator {
+    Add, Sub, Mul, Div, Not
+}
+
 pub struct Lexer {
     chars: Vec<char>,
     index: usize 
@@ -5,13 +10,21 @@ pub struct Lexer {
 
 #[derive(Debug)]
 pub enum Token {
-    Number(f64),
-    Literal(String),
+    Num(f64),
     Str(String),
-    If,
+    Id(String),
 
-    Add, Sub, Mul, Div,
-    Assign
+    Op(Operator),
+
+    LParenthesis,
+    RParenthesis,
+    Comma,
+
+    Assign,
+    
+    If, 
+
+    EOS,
 }
 
 fn is_whitespace(c : char) -> bool {
@@ -50,6 +63,7 @@ impl Lexer {
         while let Some(c) = self.current() {
             match c {
                 _ if is_operator(c) || is_whitespace(c) => break,
+                '(' | ')' | ',' => break,
                 _ => literal.push(c)
             }
 
@@ -58,7 +72,7 @@ impl Lexer {
 
         match &*literal {
             "if" => Token::If,
-            _ => Token::Literal(literal) 
+            _ => Token::Id(literal)
         }
     }
 
@@ -73,16 +87,17 @@ impl Lexer {
         }
 
         match &*operator {
-            "+" => Ok(Token::Add),
-            "-" => Ok(Token::Sub),
-            "*" => Ok(Token::Mul),
-            "/" => Ok(Token::Div),
+            "+" => Ok(Token::Op(Operator::Add)),
+            "-" => Ok(Token::Op(Operator::Sub)),
+            "*" => Ok(Token::Op(Operator::Mul)),
+            "/" => Ok(Token::Op(Operator::Div)),
+
             "<-" => Ok(Token::Assign),
             _ => Err(format!("Unknown operator: {}", operator))
         }
     }
 
-    fn read_number(&mut self) -> Token {
+    fn read_number(&mut self) -> Result<Token, String> {
         let mut number       = 0.0;
         let mut decimal_part = false;
         let mut e : i64      = 0;
@@ -94,7 +109,13 @@ impl Lexer {
                     number = (number * 10.0) + v;
                     if decimal_part { e-=1; }
                 },
-                '.' => decimal_part = true,
+                '.' => {
+                    if decimal_part {
+                        return Err(format!("Unexpected . at {}", self.index - 1))
+                    }
+
+                    decimal_part = true 
+                },
                 _ => break
             }
 
@@ -102,8 +123,11 @@ impl Lexer {
         }
 
         number *= (10.0 as f64).powf(e as f64);
-
-        Token::Number(number)
+        if number.is_infinite() {
+            return Err(format!("Too big number at {}", self.index - 1))
+        }
+        
+        Ok(Token::Num(number))
     }
 
     fn skip_whitespaces(&mut self) {
@@ -136,11 +160,35 @@ impl Lexer {
         let c = self.chars[self.index];
 
         match c {
+            '(' => { self.step(); Ok(Token::RParenthesis) },
+            ')' => { self.step(); Ok(Token::LParenthesis) },
+            ',' => { self.step(); Ok(Token::Comma) },
+            ';' => { self.step(); Ok(Token::EOS) }
             '"' => self.read_string(),
-            '0'..='9' | '.' => Ok(self.read_number()),
+            '0'..='9' | '.' => self.read_number(),
             _ if is_operator(c) => self.read_operator(),
             _ => Ok(self.read_literal())
         }
+    }
+
+    pub fn collect(&mut self) -> Result<Vec<Token>, String> {
+        let mut tokens : Vec<Token> = vec![]; 
+
+        loop {
+            match self.next() {
+                Ok(result) => {
+                    if let Some(token) = result {
+                        tokens.push(token); continue;
+                    }
+
+                    break
+                }
+
+                Err(err) => return Err(err)
+            }
+        }
+        
+        Ok(tokens)
     }
 
     pub fn next(&mut self) -> Result<Option<Token>, String> {

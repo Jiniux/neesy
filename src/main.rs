@@ -2,14 +2,26 @@ use std::io::stdin;
 use std::io::BufRead;
 
 mod lexer;
+mod parser;
+
+use parser::Parser;
+use parser::Precedence;
 
 use lexer::Lexer;
 
 fn process(buf : String) {
     let mut lexer = Lexer::new(buf);
 
-    while let Some(token) = lexer.next().unwrap() {
-        println!("{:?}", token)
+    let tokens = match lexer.collect() {
+        Ok(tokens) => tokens,
+        Err(err) => return println!("{}", err) 
+    };
+
+
+    let mut parser = Parser::new(tokens.iter().peekable());
+    match parser.parse_expression(Precedence::Lowest) {
+        Ok(expr) => println!("{:?}", expr),
+        Err(string) => println!("{}", string)
     }
 }
 

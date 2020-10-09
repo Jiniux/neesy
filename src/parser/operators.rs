@@ -1,6 +1,6 @@
 use crate::lexer::Operator;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum InfixOperator {
     Add, Sub, Mul, Div
 }
@@ -18,7 +18,7 @@ impl Operator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PrefixOperator {
     Positive, Negative, Not
 }
@@ -33,8 +33,4 @@ impl Operator {
             _ => None
         }
     }
-}
-#[derive(Debug)]
-pub enum PostfixOperator {
-    FunctionCall
 }

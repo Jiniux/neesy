@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Operator {
     Add, Sub, Mul, Div, Not
 }
@@ -8,7 +8,7 @@ pub struct Lexer {
     index: usize 
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     Num(f64),
     Str(String),
@@ -16,8 +16,17 @@ pub enum Token {
 
     Op(Operator),
 
-    LParenthesis,
+    VBar,
+
+    RBrace,
+    LBrace,
+
     RParenthesis,
+    LParenthesis,
+
+    RBracket,
+    LBracket,
+
     Comma,
 
     Assign,
@@ -63,7 +72,7 @@ impl Lexer {
         while let Some(c) = self.current() {
             match c {
                 _ if is_operator(c) || is_whitespace(c) => break,
-                '(' | ')' | ',' => break,
+                '(' | ')' | ',' | '|' | '{' | '}' | '[' | ']' | ';' => break,
                 _ => literal.push(c)
             }
 
@@ -162,6 +171,11 @@ impl Lexer {
         match c {
             '(' => { self.step(); Ok(Token::RParenthesis) },
             ')' => { self.step(); Ok(Token::LParenthesis) },
+            '[' => { self.step(); Ok(Token::RBracket) },
+            ']' => { self.step(); Ok(Token::LBracket) },
+            '{' => { self.step(); Ok(Token::RBrace) },
+            '}' => { self.step(); Ok(Token::LBrace) },
+            '|' => { self.step(); Ok(Token::VBar) },
             ',' => { self.step(); Ok(Token::Comma) },
             ';' => { self.step(); Ok(Token::EOS) }
             '"' => self.read_string(),

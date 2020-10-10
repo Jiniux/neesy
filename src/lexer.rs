@@ -1,6 +1,14 @@
 #[derive(Debug, PartialEq)]
 pub enum Operator {
-    Add, Sub, Mul, Div, Not
+    Add, Sub, Mul, Div, Not,
+
+    Equals, 
+    
+    LessThan, 
+    LessThanOrEquals, 
+
+    GreaterThan,
+    GreaterThanOrEquals,
 }
 
 pub struct Lexer {
@@ -25,13 +33,14 @@ pub enum Token {
     LParenthesis,
 
     RBracket,
-    LBracket,
+    LBracket, Not,
 
     Comma,
 
     Assign,
     
     If, 
+    Else,
 
     EOS,
 }
@@ -81,6 +90,7 @@ impl Lexer {
 
         match &*literal {
             "if" => Token::If,
+            "else" => Token::Else,
             _ => Token::Id(literal)
         }
     }
@@ -101,7 +111,14 @@ impl Lexer {
             "*" => Ok(Token::Op(Operator::Mul)),
             "/" => Ok(Token::Op(Operator::Div)),
 
+            "==" => Ok(Token::Op(Operator::Equals)),
+            ">=" => Ok(Token::Op(Operator::GreaterThanOrEquals)),
+            "<=" => Ok(Token::Op(Operator::LessThanOrEquals)),
+            ">"  => Ok(Token::Op(Operator::GreaterThan)),
+            "<"  => Ok(Token::Op(Operator::LessThan)),
+
             "<-" => Ok(Token::Assign),
+            
             _ => Err(format!("Unknown operator: {}", operator))
         }
     }
@@ -144,12 +161,12 @@ impl Lexer {
             if !is_whitespace(c) { break; }
             self.step();
         }
-    }
+    
 
     fn read_string(&mut self) -> Result<Token, String> {
         self.step();
         let mut string = String::new();
-
+        
         while let Some(c) = self.current() {
             match c {
                 '"' => { 

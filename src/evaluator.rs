@@ -1,6 +1,5 @@
 use crate::parser::operators::*;
 use crate::parser::*;
-
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
@@ -11,6 +10,7 @@ pub enum Value {
     Str(String),
     Function(HashSet<String>, Vec<Expression>)
 }
+
 
 mod basic; 
 mod boolean; use boolean::*;
@@ -40,7 +40,6 @@ impl<'parent_scope> Evaluator<'parent_scope> {
     }
     
     pub fn evaluate_block(&mut self, stmts : Vec<Expression>) -> Result<Value, String> {
-        
         for i in 0..stmts.len()-1 {
             self.evaluate(stmts[i].clone())?;
         }
@@ -81,7 +80,7 @@ impl<'parent_scope> Evaluator<'parent_scope> {
             Expression::Function(params,smts) => {
                 Ok(Value::Function(params, smts))
             },
-
+            
             Expression::If(expr, stmts, else_stmts) => {
                 if let Value::Bool(result) = self.evaluate(*expr)? {
                     if result { Ok(self.evaluate_block(stmts)?) } 
@@ -100,8 +99,8 @@ impl<'parent_scope> Evaluator<'parent_scope> {
             Expression::FunctionCall(name, params) => {
                 let (t_params, t_exprs) = 
                         match self.get_value(&name)? {
-                            Value::Function(params, exprs) => 
-                                (params.clone(), exprs.clone()),
+                            Value::Function(params, exprs) => {
+                                (params.clone(), exprs.clone())},
 
                             _ => return Err(format!("{} is not a function", name))
                         };
@@ -116,8 +115,12 @@ impl<'parent_scope> Evaluator<'parent_scope> {
                     subeval.variables.insert(t_param.clone(), self.evaluate(params[i].clone())?);
                 }
 
-                subeval.parent_scope = Some(self);
-                
+                if self.parent_scope.is_none() {
+                    subeval.parent_scope = Some(self);
+                } else {
+                    subeval.parent_scope = Some(self.parent_scope.unwrap());
+                }
+
                 Ok(subeval.evaluate_block(t_exprs)?)
             },
 

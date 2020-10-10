@@ -101,7 +101,7 @@ impl Lexer {
         while let Some(c) = self.current() {
             if !is_operator(c) { break; }
             operator.push(c);
-
+            
             self.step()
         }
 
@@ -161,7 +161,7 @@ impl Lexer {
             if !is_whitespace(c) { break; }
             self.step();
         }
-    
+    }
 
     fn read_string(&mut self) -> Result<Token, String> {
         self.step();

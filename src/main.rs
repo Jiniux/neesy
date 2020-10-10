@@ -28,7 +28,7 @@ fn process(buf : String, evaluator: &mut Evaluator) {
 }
 
 fn main() {
-    let mut eval = Evaluator::new();
+    let mut eval = Evaluator::new(None);
 
     for line in stdin().lock().lines() {
         match line {

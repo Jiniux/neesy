@@ -11,6 +11,7 @@ use operators::*;
 #[derive(PartialOrd, PartialEq, Copy, Clone)]
 pub enum Precedence {
     Lowest,
+    Equals,
     Add,
     Mul,
     Prefix,
@@ -22,12 +23,18 @@ impl InfixOperator {
         match self {
             InfixOperator::Add | InfixOperator::Sub => Precedence::Add,
             InfixOperator::Mul | InfixOperator::Div => Precedence::Mul,
+
+            InfixOperator::Equals   | InfixOperator::GreaterThan      | 
+            InfixOperator::LessThan | InfixOperator::LessThanOrEquals |
+            InfixOperator::GreaterThanOrEquals => Precedence::Equals
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum Expression {
+    Empty,
+
     Id(String),
     Assignment(String, Box<Expression>),
     Num(f64),
@@ -35,6 +42,9 @@ pub enum Expression {
 
     Function(HashSet<String>, Vec<Expression>),
     FunctionCall(String, Vec<Expression>),
+
+    If(Box<Expression>, Vec<Expression>, Option<Vec<Expression>>),
+    Return(Box<Expression>),
 
     Infix(InfixOperator, Box<Expression>, Box<Expression>),
     Prefix(PrefixOperator, Box<Expression>),
@@ -99,6 +109,20 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn is_next(&mut self, token: Token) -> bool {
+        match self.tokens.peek() {
+            Some(next_token) => {
+                if token == **next_token {
+                    true
+                } else {
+                    false
+                }
+            }
+
+            None => false,
+        }
+    }
+
     fn expect_next(&mut self, token: Token) -> Result<(), String> {
         match self.tokens.peek() {
             Some(next_token) => {
@@ -146,6 +170,52 @@ impl<'a> Parser<'a> {
         Err("Expected function name, got nothing.".to_owned())
     }
 
+    fn parse_if_expression(&mut self) -> Result<Expression, String> {
+        let bool_expr_opt = self.parse_expression(Precedence::Lowest)?;
+
+        if bool_expr_opt.is_none() {
+            return Err("Expected expression".to_owned());
+        }
+
+        self.expect_next(Token::RBrace)?;
+        self.tokens.next();
+
+        let block = self.parse_block()?;
+        let else_block = if self.is_next(Token::Else) {
+            self.tokens.next();
+
+            self.expect_next(Token::RBrace)?;
+            self.tokens.next();
+    
+            Some(self.parse_block()?)
+        } else { None };
+
+        Ok(Expression::If(Box::new(bool_expr_opt.unwrap()), block, else_block))
+    }
+
+    fn parse_block(&mut self) -> Result<Vec<Expression>, String>{
+        let mut expressions : Vec<Expression> = vec![];
+
+        loop {
+            if let Some(next_token) = self.tokens.peek() {
+                match next_token {
+                    Token::LBrace => { self.tokens.next(); break } , 
+                    Token::EOS => { self.tokens.next(); }
+                    _ => {}
+                }
+            } else {
+                return Err(format!("Expected LBrace, got nothing"));
+            }
+
+            match self.parse_expression(Precedence::Lowest)? {
+                Some(expr) => expressions.push(expr),
+                None => break,
+            }
+        }
+
+        Ok(expressions)
+    }
+
     fn parse_function(&mut self) -> Result<Expression, String> {
         
         // Parse arguments
@@ -168,6 +238,8 @@ impl<'a> Parser<'a> {
 
                     n_id
                 },
+
+                Token::VBar => { break; }
 
                 _ => return Err(format!("Expected parameter name.")),
             });
@@ -193,26 +265,7 @@ impl<'a> Parser<'a> {
         self.expect_next(Token::RBrace)?;
         self.tokens.next();
 
-        let mut expressions : Vec<Expression> = vec![];
-
-        loop {
-            if let Some(next_token) = self.tokens.peek() {
-                match next_token {
-                    Token::LBrace => { self.tokens.next(); break } , 
-                    Token::EOS => { self.tokens.next(); }
-                    _ => {}
-                }
-            } else {
-                return Err(format!("Expected LBrace, got nothing"));
-            }
-
-            match self.parse_expression(Precedence::Lowest)? {
-                Some(expr) => expressions.push(expr),
-                None => break,
-            }
-        }
-
-        Ok(Expression::Function(parameters, expressions))
+        Ok(Expression::Function(parameters, self.parse_block()?))
     }
 
     pub fn parse_expression(&mut self, prec: Precedence) -> Result<Option<Expression>, String> {
@@ -242,6 +295,8 @@ impl<'a> Parser<'a> {
                     }
                 },
 
+                Token::If => Some(self.parse_if_expression()?),
+
                 Token::EOS => return Ok(None),
 
                 _ => return Err(format!("Expected expression, got {:?}", token)),
@@ -256,7 +311,7 @@ impl<'a> Parser<'a> {
             loop {
                 if let Some(next_token) = self.tokens.peek() {
                     lhs = match next_token {
-                        Token::EOS | Token::LBrace | Token::LBracket => {
+                        Token::EOS | Token::RBrace | Token::LBrace | Token::LBracket => {
                             break;
                         },
 

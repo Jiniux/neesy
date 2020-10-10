@@ -2,7 +2,15 @@ use crate::lexer::Operator;
 
 #[derive(Debug, Clone)]
 pub enum InfixOperator {
-    Add, Sub, Mul, Div
+    Add, Sub, Mul, Div, 
+    
+    Equals, 
+    
+    LessThan, 
+    LessThanOrEquals, 
+
+    GreaterThan,
+    GreaterThanOrEquals,
 }
 
 impl Operator {
@@ -12,6 +20,13 @@ impl Operator {
             Operator::Sub => Some(InfixOperator::Sub),
             Operator::Mul => Some(InfixOperator::Mul),
             Operator::Div => Some(InfixOperator::Div),
+            
+            Operator::Equals => Some(InfixOperator::Equals),
+            Operator::GreaterThan => Some(InfixOperator::GreaterThan),
+            Operator::GreaterThanOrEquals => Some(InfixOperator::GreaterThanOrEquals),
+            Operator::LessThan => Some(InfixOperator::LessThan),
+            Operator::LessThanOrEquals => Some(InfixOperator::LessThanOrEquals),
+
 
             _ => None
         }

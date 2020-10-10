@@ -1,131 +1,51 @@
 use crate::parser::operators::*;
 use crate::parser::*;
 
-use std::collections::HashSet;
-
-use std::ops::{Add, Sub, Div, Mul, Neg};
-use std::rc::Rc;
-
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
 pub enum Value {
+    Void,
     Number(f64),
     Bool(bool),
     Str(String),
     Function(HashSet<String>, Vec<Expression>)
 }
 
-impl Add for Value {
-    type Output = Result<Value, String>;
-
-    fn add(self, other: Value) -> Result<Value, String> {
-        match self {
-            Value::Number(x) => {
-                if let Value::Number(y) = other {
-                    Ok(Value::Number(x + y))
-                } else {
-                    Err(format!("Cannot sum with {:?}", other))
-                }
-            },
-
-            Value::Str(x) => {
-                if let Value::Str(y) = other {
-                    let mut  new = String::new();
-
-                    new.push_str(&x);
-                    new.push_str(&y);
-                    
-                    Ok(Value::Str(new))
-                } else {
-                    Err(format!("Cannot sum with {:?}", other))
-                }
-            }
-
-            _ => unreachable!()
-        }
-    }
-}
-
-
-impl Sub for Value {
-    type Output = Result<Value, String>;
-
-    fn sub(self, other: Value) -> Result<Value, String> {
-        match self {
-            Value::Number(x) => {
-                if let Value::Number(y) = other {
-                    Ok(Value::Number(x - y))
-                } else {
-                    Err(format!("Cannot sum with {:?}", other))
-                }
-            }
-
-            _ => unreachable!()
-        }
-    }
-}
-
-
-impl Mul for Value {
-    type Output = Result<Value, String>;
-
-    fn mul(self, other: Value) -> Result<Value, String> {
-        match self {
-            Value::Number(x) => {
-                if let Value::Number(y) = other {
-                    Ok(Value::Number(x * y))
-                } else {
-                    Err(format!("Cannot sum with {:?}", other))
-                }
-            },
-
-            Value::Str(x) => {
-                if let Value::Number(y ) = other {
-                    let mut new = String::new();
-
-                    for _ in 0..(y as usize)  { new.push_str(&x); }
-
-                    Ok(Value::Str(new))
-                } else {
-                    Err(format!("Cannot sum with {:?}", other))
-                }
-            }
-
-            _ => unreachable!()
-        }
-    }
-}
-
-
-impl Div for Value {
-    type Output = Result<Value, String>;
-
-    fn div(self, other: Value) -> Result<Value, String> {
-        match self {
-            Value::Number(x) => {
-                if let Value::Number(y) = other {
-                    Ok(Value::Number(x / y))
-                } else {
-                    Err(format!("Cannot sum with {:?}", other))
-                }
-            }
-
-            _ => unreachable!()
-        }
-    }
-}
-
-
+mod basic; 
+mod boolean; use boolean::*;
 
 #[derive(Debug)]
-pub struct Evaluator {
+pub struct Evaluator<'parent_scope> {
+    parent_scope : Option<&'parent_scope Evaluator<'parent_scope>>,
     variables : HashMap<String, Value>
 }
 
-impl Evaluator {
-    pub fn new () -> Self {
-        Evaluator { variables: HashMap::new() }
+impl<'parent_scope> Evaluator<'parent_scope> {
+    pub fn new (parent_scope: Option<&'parent_scope Evaluator>) -> Self {
+        Evaluator { variables: HashMap::new(), parent_scope }
+    }
+
+    fn get_value(&self, name: &String) -> Result<Value, String> {
+        Ok(match self.variables.get(name) {
+            Some(value) => value.clone(),
+            None => 
+                if let Some(ps) = self.parent_scope { 
+                    ps.get_value(name)?.clone() 
+                } 
+                else {  
+                    return Err(format!("Cannot find variable {}", name))
+                }
+        })
+    }
+    
+    pub fn evaluate_block(&mut self, stmts : Vec<Expression>) -> Result<Value, String> {
+        
+        for i in 0..stmts.len()-1 {
+            self.evaluate(stmts[i].clone())?;
+        }
+
+        return Ok(self.evaluate(stmts[stmts.len()-1].clone())?)
     }
 
     pub fn evaluate(&mut self, expression : Expression) -> Result<Value, String> {
@@ -136,6 +56,9 @@ impl Evaluator {
                     InfixOperator::Sub => self.evaluate(*l)? - self.evaluate(*r)?,
                     InfixOperator::Mul => self.evaluate(*l)? * self.evaluate(*r)?,
                     InfixOperator::Div => self.evaluate(*l)? / self.evaluate(*r)?,
+                    InfixOperator::Equals => equals(self.evaluate(*l)?, self.evaluate(*r)?),
+
+                    _ => unreachable!()
                 },
 
             Expression::Prefix(op, l) => 
@@ -144,12 +67,7 @@ impl Evaluator {
                     _=> unreachable!()
                 },
 
-            Expression::Id(name) => {
-                match self.variables.get(&name) {
-                    Some(value) => Ok(value.clone()),
-                    None => return Err(format!("Cannot find variable {:?}", name))
-                }
-            },
+            Expression::Id(name) => self.get_value(&name),
 
             Expression::Assignment(name, expr) => {
                 let value = self.evaluate(*expr)?;
@@ -164,34 +82,43 @@ impl Evaluator {
                 Ok(Value::Function(params, smts))
             },
 
+            Expression::If(expr, stmts, else_stmts) => {
+                if let Value::Bool(result) = self.evaluate(*expr)? {
+                    if result { Ok(self.evaluate_block(stmts)?) } 
+                    else { 
+                        if else_stmts.is_none() {
+                            Ok(Value::Void) 
+                        } else {
+                            Ok(self.evaluate_block(else_stmts.unwrap())?)
+                        }
+                    }
+                } else {
+                    unreachable!()
+                }
+            },
+
             Expression::FunctionCall(name, params) => {
                 let (t_params, t_exprs) = 
-                    if let Some(var) = self.variables.get(&name) {
-                        match var {
+                        match self.get_value(&name)? {
                             Value::Function(params, exprs) => 
                                 (params.clone(), exprs.clone()),
 
                             _ => return Err(format!("{} is not a function", name))
-                        }
-                    } else { 
-                        return Err("No".to_owned()) 
-                    };
+                        };
                 
                 if params.len() != t_params.len() {
-                    return Err(format!("{} requires {} params, {} given", name, 
+                    return Err(format!("{} requires {} param(s), {} given", name, 
                         t_params.len(), params.len()));
                 }
 
-                let mut subeval = Evaluator::new();
+                let mut subeval = Evaluator::new(None);
                 for (i, t_param) in t_params.iter().enumerate() {
                     subeval.variables.insert(t_param.clone(), self.evaluate(params[i].clone())?);
                 }
 
-                for i in 0..t_exprs.len()-1 {
-                    subeval.evaluate(t_exprs[i].clone())?;
-                }
-
-                return Ok(subeval.evaluate(t_exprs[t_exprs.len()-1].clone())?)
+                subeval.parent_scope = Some(self);
+                
+                Ok(subeval.evaluate_block(t_exprs)?)
             },
 
             _ => unreachable!()

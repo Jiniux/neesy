@@ -2,13 +2,14 @@ use crate::parser::operators::*;
 use crate::parser::*;
 use std::collections::{HashMap, HashSet};
 
+use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub enum Value {
     Void,
     Number(f64),
     Bool(bool),
     Str(String),
-    Function(HashSet<String>, Vec<Expression>)
+    Function(Rc<HashSet<String>>, Rc<Vec<Expression>>)
 }
 
 
@@ -21,17 +22,17 @@ pub struct Evaluator<'parent_scope> {
     variables : HashMap<String, Value>
 }
 
-impl<'parent_scope> Evaluator<'parent_scope> {
+impl<'parent_scope, 'a> Evaluator<'parent_scope> {
     pub fn new (parent_scope: Option<&'parent_scope Evaluator>) -> Self {
         Evaluator { variables: HashMap::new(), parent_scope }
     }
 
-    fn get_value(&self, name: &String) -> Result<Value, String> {
+    fn get_value(&self, name: &String) -> Result<&Value, String> {
         Ok(match self.variables.get(name) {
-            Some(value) => value.clone(),
+            Some(value) => value,
             None => 
                 if let Some(ps) = self.parent_scope { 
-                    ps.get_value(name)?.clone() 
+                    ps.get_value(name)?
                 } 
                 else {  
                     return Err(format!("Cannot find variable {}", name))
@@ -39,56 +40,59 @@ impl<'parent_scope> Evaluator<'parent_scope> {
         })
     }
     
-    pub fn evaluate_block(&mut self, stmts : Vec<Expression>) -> Result<Value, String> {
+    pub fn evaluate_block(&mut self, stmts : &'a Vec<Expression>) -> Result<Value, String> {
         for i in 0..stmts.len()-1 {
-            self.evaluate(stmts[i].clone())?;
+            self.evaluate(&stmts[i])?;
         }
 
-        return Ok(self.evaluate(stmts[stmts.len()-1].clone())?)
+        return Ok(self.evaluate(&stmts[stmts.len()-1])?)
     }
+    
 
-    pub fn evaluate(&mut self, expression : Expression) -> Result<Value, String> {
+    pub fn evaluate(&mut self, expression : &'a Expression) -> Result<Value, String> {
         match expression {
             Expression::Infix(op, l, r) =>
                 match op {
-                    InfixOperator::Add => self.evaluate(*l)? + self.evaluate(*r)?,
-                    InfixOperator::Sub => self.evaluate(*l)? - self.evaluate(*r)?,
-                    InfixOperator::Mul => self.evaluate(*l)? * self.evaluate(*r)?,
-                    InfixOperator::Div => self.evaluate(*l)? / self.evaluate(*r)?,
-                    InfixOperator::Equals => equals(self.evaluate(*l)?, self.evaluate(*r)?),
+                    InfixOperator::Add => self.evaluate(*(&l))? + self.evaluate(*(&r))?,
+                    InfixOperator::Sub => self.evaluate(*(&l))? - self.evaluate(*(&r))?,
+                    InfixOperator::Mul => self.evaluate(*(&l))? * self.evaluate(*(&r))?,
+                    InfixOperator::Div => self.evaluate(*(&l))? / self.evaluate(*(&r))?,
+                    InfixOperator::Equals => equals(self.evaluate(*(&l))?, self.evaluate(*(&r))?),
 
                     _ => unreachable!()
                 },
 
             Expression::Prefix(op, l) => 
                 match op {
-                    PrefixOperator::Positive => self.evaluate(*l),
+                    PrefixOperator::Positive => self.evaluate(*(&l)),
                     _=> unreachable!()
                 },
 
-            Expression::Id(name) => self.get_value(&name),
+            Expression::Id(name) => Ok(self.get_value(&name)?.clone()),
 
             Expression::Assignment(name, expr) => {
-                let value = self.evaluate(*expr)?;
+                let value = self.evaluate(*(&expr))?;
 
-                self.variables.insert(name, value.clone());
+                self.variables.insert(name.clone(), value.clone());
                 Ok(value)
             },
             
-            Expression::Num(n) => Ok(Value::Number(n)),
-            Expression::Str(string) => Ok(Value::Str(string)),
+            Expression::Num(n) => Ok(Value::Number(n.clone())),
+            Expression::Str(string) => Ok(Value::Str(string.clone())),
             Expression::Function(params,smts) => {
-                Ok(Value::Function(params, smts))
+                Ok(Value::Function(Rc::new(params.clone()), Rc::new(smts.clone())))
             },
             
             Expression::If(expr, stmts, else_stmts) => {
-                if let Value::Bool(result) = self.evaluate(*expr)? {
+                if let Value::Bool(result) = self.evaluate(*(&expr))? {
                     if result { Ok(self.evaluate_block(stmts)?) } 
                     else { 
+                        let else_stmts_ref = else_stmts.as_ref();
+
                         if else_stmts.is_none() {
                             Ok(Value::Void) 
                         } else {
-                            Ok(self.evaluate_block(else_stmts.unwrap())?)
+                            Ok(self.evaluate_block(else_stmts_ref.unwrap())?)
                         }
                     }
                 } else {
@@ -112,7 +116,7 @@ impl<'parent_scope> Evaluator<'parent_scope> {
 
                 let mut subeval = Evaluator::new(None);
                 for (i, t_param) in t_params.iter().enumerate() {
-                    subeval.variables.insert(t_param.clone(), self.evaluate(params[i].clone())?);
+                    subeval.variables.insert(t_param.clone(), self.evaluate(&params[i])?);
                 }
 
                 if self.parent_scope.is_none() {
@@ -121,7 +125,9 @@ impl<'parent_scope> Evaluator<'parent_scope> {
                     subeval.parent_scope = Some(self.parent_scope.unwrap());
                 }
 
-                Ok(subeval.evaluate_block(t_exprs)?)
+                let result = subeval.evaluate_block(&t_exprs)?;
+
+                Ok(result)
             },
 
             _ => unreachable!()

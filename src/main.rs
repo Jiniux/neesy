@@ -21,8 +21,12 @@ fn process(buf : String, evaluator: &mut Evaluator) {
     };
     
     let mut parser = Parser::new(tokens.iter().peekable());
+    
     match parser.parse_expression(Precedence::Lowest) {
-        Ok(expr) => println!("{:?}", evaluator.evaluate(expr.unwrap())),
+        Ok(expr) => { 
+            let test = expr.as_ref();
+            println!("{:?}", evaluator.evaluate(test.unwrap())) 
+        },
         Err(string) => println!("{}", string)
     }
 }

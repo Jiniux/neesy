@@ -35,6 +35,8 @@ impl InfixOperator {
 pub enum Expression {
     Empty,
 
+    Void,
+
     Id(String),
     Assignment(String, Box<Expression>),
     Num(f64),
@@ -283,6 +285,8 @@ impl<'a> Parser<'a> {
 
                 Token::VBar => Some(self.parse_function()?),
                 Token::RBracket => Some(self.parse_function_call()?),
+
+                Token::Void => Some(Expression::Void),
 
                 Token::Num(num) => Some(Expression::Num(*num)),
                 Token::Str(string) => Some(Expression::Str(String::from(string))),

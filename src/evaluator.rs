@@ -41,6 +41,8 @@ impl<'parent_scope, 'a> Evaluator<'parent_scope> {
     }
     
     pub fn evaluate_block(&mut self, stmts : &'a Vec<Expression>) -> Result<Value, String> {
+        if stmts.len() == 0 { return Ok(Value::Void); }
+        
         for i in 0..stmts.len()-1 {
             self.evaluate(&stmts[i])?;
         }
@@ -58,6 +60,7 @@ impl<'parent_scope, 'a> Evaluator<'parent_scope> {
                     InfixOperator::Mul => self.evaluate(*(&l))? * self.evaluate(*(&r))?,
                     InfixOperator::Div => self.evaluate(*(&l))? / self.evaluate(*(&r))?,
                     InfixOperator::Equals => equals(self.evaluate(*(&l))?, self.evaluate(*(&r))?),
+                    InfixOperator::LessThanOrEquals => less_than_equals(self.evaluate(*(&l))?, self.evaluate(*(&r))?),
 
                     _ => unreachable!()
                 },
@@ -73,8 +76,15 @@ impl<'parent_scope, 'a> Evaluator<'parent_scope> {
             Expression::Assignment(name, expr) => {
                 let value = self.evaluate(*(&expr))?;
 
-                self.variables.insert(name.clone(), value.clone());
-                Ok(value)
+                match value {
+                    Value::Void => Err("Cannot assign void to a variable".to_owned()),
+
+                    _ => {
+                        self.variables.insert(name.clone(), value.clone());
+                        Ok(value)
+                    }
+                }
+
             },
             
             Expression::Num(n) => Ok(Value::Number(n.clone())),
@@ -99,6 +109,8 @@ impl<'parent_scope, 'a> Evaluator<'parent_scope> {
                     unreachable!()
                 }
             },
+
+            Expression::Void => Ok(Value::Void),
 
             Expression::FunctionCall(name, params) => {
                 let (t_params, t_exprs) = 

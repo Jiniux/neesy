@@ -24,6 +24,8 @@ pub enum Token {
 
     Op(Operator),
 
+    Void,
+
     VBar,
 
     RBrace,
@@ -91,6 +93,7 @@ impl Lexer {
         match &*literal {
             "if" => Token::If,
             "else" => Token::Else,
+            "void" => Token::Void,
             _ => Token::Id(literal)
         }
     }

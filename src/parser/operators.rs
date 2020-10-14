@@ -27,7 +27,6 @@ impl Operator {
             Operator::LessThan => Some(InfixOperator::LessThan),
             Operator::LessThanOrEquals => Some(InfixOperator::LessThanOrEquals),
 
-
             _ => None
         }
     }

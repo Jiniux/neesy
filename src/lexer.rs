@@ -24,10 +24,17 @@ pub enum Token {
 
     Op(Operator),
 
+    Void,
+
     VBar,
 
     RBrace,
     LBrace,
+
+    True, 
+    False,
+
+    While,
 
     RParenthesis,
     LParenthesis,
@@ -91,6 +98,10 @@ impl Lexer {
         match &*literal {
             "if" => Token::If,
             "else" => Token::Else,
+            "void" => Token::Void,
+            "true" => Token::True,
+            "false" => Token::False,
+            "while" => Token::While,
             _ => Token::Id(literal)
         }
     }
@@ -218,7 +229,7 @@ impl Lexer {
                 Err(err) => return Err(err)
             }
         }
-        
+
         Ok(tokens)
     }
 

@@ -1,8 +1,8 @@
-use crate::lexer::{Operator, Token};
+use crate::lexer::Token;
 
 use core::slice::Iter;
 
-use std::collections::HashSet;
+use linked_hash_set::LinkedHashSet;
 use std::iter::Peekable;
 
 pub mod operators;
@@ -15,7 +15,6 @@ pub enum Precedence {
     Add,
     Mul,
     Prefix,
-    Call,
 }
 
 impl InfixOperator {
@@ -33,17 +32,19 @@ impl InfixOperator {
 
 #[derive(Debug, Clone)]
 pub enum Expression {
-    Empty,
+    Void,
 
     Id(String),
     Assignment(String, Box<Expression>),
     Num(f64),
     Str(String),
+    Bool(bool),
 
-    Function(HashSet<String>, Vec<Expression>),
+    Function(LinkedHashSet<String>, Vec<Expression>),
     FunctionCall(String, Vec<Expression>),
 
     If(Box<Expression>, Vec<Expression>, Option<Vec<Expression>>),
+    While(Box<Expression>, Vec<Expression>),
     Return(Box<Expression>),
 
     Infix(InfixOperator, Box<Expression>, Box<Expression>),
@@ -53,6 +54,7 @@ pub enum Expression {
 pub struct Parser<'a> {
     tokens: Peekable<Iter<'a, Token>>,
 }
+
 
 impl<'a> Parser<'a> {
     pub fn new(tokens: Peekable<Iter<'a, Token>>) -> Self {
@@ -92,6 +94,21 @@ impl<'a> Parser<'a> {
 
             Err(err) => Err(err),
         }
+    }
+
+    fn parse_while_expression(&mut self) -> Result<Expression, String> {
+        let bool_expr_opt = self.parse_expression(Precedence::Lowest)?;
+
+        if bool_expr_opt.is_none() {
+            return Err("Expected expression".to_owned());
+        }
+
+        self.expect_next(Token::RBrace)?;
+        self.tokens.next();
+
+        let block = self.parse_block()?;
+
+        Ok(Expression::While(Box::new(bool_expr_opt.unwrap()), block))
     }
 
     fn parse_assign(&mut self, lhs: Expression, prec: Precedence) -> Result<Expression, String> {
@@ -219,7 +236,7 @@ impl<'a> Parser<'a> {
     fn parse_function(&mut self) -> Result<Expression, String> {
         
         // Parse arguments
-        let mut parameters: HashSet<String> = HashSet::new();
+        let mut parameters: LinkedHashSet<String> = LinkedHashSet::new();
 
         loop {
             let next_token= self.tokens.next() ;
@@ -284,6 +301,13 @@ impl<'a> Parser<'a> {
                 Token::VBar => Some(self.parse_function()?),
                 Token::RBracket => Some(self.parse_function_call()?),
 
+                Token::While =>Some(self.parse_while_expression()?),
+
+                Token::True => Some(Expression::Bool(true)),
+                Token::False => Some(Expression::Bool(false)),
+
+                Token::Void => Some(Expression::Void),
+
                 Token::Num(num) => Some(Expression::Num(*num)),
                 Token::Str(string) => Some(Expression::Str(String::from(string))),
                 Token::Id(id) => Some(Expression::Id(String::from(id))),
@@ -320,7 +344,6 @@ impl<'a> Parser<'a> {
                             break;
                         }
 
-                        // This is ugly.
                         Token::Assign => self.parse_assign(lhs, prec)?,
 
                         Token::Op(op) => {

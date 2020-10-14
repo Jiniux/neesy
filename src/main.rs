@@ -1,8 +1,10 @@
 use std::io::stdin;
 use std::io::BufRead;
 
+
 mod lexer;
 mod parser;
+mod builtin;
 mod evaluator;
 
 use parser::Parser;
@@ -31,8 +33,18 @@ fn process(buf : String, evaluator: &mut Evaluator) {
     }
 }
 
+use std::collections::HashMap;
+
+use evaluator::Value;
+
 fn main() {
-    let mut eval = Evaluator::new(None);
+    let mut builtin_functions: HashMap<String, Value> = HashMap::new();
+
+    builtin_functions.insert(format!("puts_num"), Value::BuiltinFunction(1, builtin::puts_num));
+    builtin_functions.insert(format!("puts_str"), Value::BuiltinFunction(1, builtin::puts_str));
+    builtin_functions.insert(format!("pow"), Value::BuiltinFunction(2, builtin::math::pow));
+
+    let mut eval = Evaluator::new(None, &builtin_functions);
 
     for line in stdin().lock().lines() {
         match line {
@@ -41,3 +53,4 @@ fn main() {
         }
     }
 }
+            

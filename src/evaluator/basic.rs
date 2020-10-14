@@ -10,20 +10,20 @@ impl Add for Value {
                 if let Value::Number(y) = other {
                     Ok(Value::Number(x + y))
                 } else {
-                    Err(format!("Cannot sum with {:?}", other))
+                    return invalid_operands_err!("sum", x, other);
                 }
             },
 
             Value::Str(x) => {
                 if let Value::Str(y) = other {
-                    let mut  new = String::new();
+                    let mut new = String::new();
 
                     new.push_str(&x);
                     new.push_str(&y);
                     
                     Ok(Value::Str(new))
                 } else {
-                    Err(format!("Cannot sum with {:?}", other))
+                    return invalid_operands_err!("sum", x, other);
                 }
             }
 
@@ -42,7 +42,7 @@ impl Sub for Value {
                 if let Value::Number(y) = other {
                     Ok(Value::Number(x - y))
                 } else {
-                    Err(format!("Cannot sum with {:?}", other))
+                    return invalid_operands_err!("subtract", x, other);
                 }
             }
 
@@ -61,7 +61,7 @@ impl Mul for Value {
                 if let Value::Number(y) = other {
                     Ok(Value::Number(x * y))
                 } else {
-                    Err(format!("Cannot sum with {:?}", other))
+                    return invalid_operands_err!("multiply", x, other);
                 }
             },
 
@@ -73,7 +73,7 @@ impl Mul for Value {
 
                     Ok(Value::Str(new))
                 } else {
-                    Err(format!("Cannot sum with {:?}", other))
+                    return invalid_operands_err!("multiply", x, other);
                 }
             }
 
@@ -92,7 +92,7 @@ impl Div for Value {
                 if let Value::Number(y) = other {
                     Ok(Value::Number(x / y))
                 } else {
-                    Err(format!("Cannot sum with {:?}", other))
+                    return invalid_operands_err!("divide", x, other);
                 }
             }
 

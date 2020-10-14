@@ -31,6 +31,11 @@ pub enum Token {
     RBrace,
     LBrace,
 
+    True, 
+    False,
+
+    While,
+
     RParenthesis,
     LParenthesis,
 
@@ -94,6 +99,9 @@ impl Lexer {
             "if" => Token::If,
             "else" => Token::Else,
             "void" => Token::Void,
+            "true" => Token::True,
+            "false" => Token::False,
+            "while" => Token::While,
             _ => Token::Id(literal)
         }
     }
@@ -221,7 +229,7 @@ impl Lexer {
                 Err(err) => return Err(err)
             }
         }
-        
+
         Ok(tokens)
     }
 

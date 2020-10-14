@@ -5,3 +5,4 @@ authors = ["Jiniux <53437303+Jiniux@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
+linked_hash_set = "*"

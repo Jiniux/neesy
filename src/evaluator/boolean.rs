@@ -1,47 +1,34 @@
 
 use crate::evaluator::Value;
 
-pub fn equals(x : Value, other: Value) -> Result<Value, String> {
-    match x {
-        Value::Number(n) => {
-            if let Value::Number(y) = other {
-                Ok(Value::Bool(n == y))
-            } else {
-                Err(format!("Can't compare"))
-            }
-        },
+macro_rules! declare_boolean_op {
+    ($name:ident, $op:tt) => { 
+        pub fn $name(x : Value, other: Value) -> Result<Value, String> {
+            match x {
+                Value::Number(n) => {
+                    if let Value::Number(y) = other {
+                        Ok(Value::Bool(n $op y))
+                    } else {
+                        return invalid_operands_err!("compare", n, other);
+                    }
+                },
 
-        Value::Str(s) => {
-            if let Value::Str(y) = other {
-                Ok(Value::Bool(s == y))
-            } else {
-                Err(format!("Can't compare"))
-            }
-        }
+                Value::Str(s) => {
+                    if let Value::Str(y) = other {
+                        Ok(Value::Bool(s $op y))
+                    } else {
+                        return invalid_operands_err!("compare", s, other);
+                    }
+                }
 
-        _ => unreachable!()
-    }
-}
-
-
-pub fn less_than_equals(x : Value, other: Value) -> Result<Value, String> {
-    match x {
-        Value::Number(n) => {
-            if let Value::Number(y) = other {
-                Ok(Value::Bool(n <= y))
-            } else {
-                Err(format!("Can't compare"))
-            }
-        },
-
-        Value::Str(s) => {
-            if let Value::Str(y) = other {
-                Ok(Value::Bool(s <= y))
-            } else {
-                Err(format!("Can't compare"))
+                _ => unreachable!()
             }
         }
-
-        _ => unreachable!()
-    }
+    };
 }
+
+declare_boolean_op!(equals, ==);
+declare_boolean_op!(less_than_equals, <=);
+declare_boolean_op!(greater_than_equals, >=);
+declare_boolean_op!(greater_than, >);
+declare_boolean_op!(less_than, <);

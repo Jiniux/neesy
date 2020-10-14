@@ -1,6 +1,14 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Operator {
-    Add, Sub, Mul, Div, Not
+    Add, Sub, Mul, Div, Not,
+
+    Equals, 
+    
+    LessThan, 
+    LessThanOrEquals, 
+
+    GreaterThan,
+    GreaterThanOrEquals,
 }
 
 pub struct Lexer {
@@ -8,7 +16,7 @@ pub struct Lexer {
     index: usize 
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     Num(f64),
     Str(String),
@@ -16,13 +24,30 @@ pub enum Token {
 
     Op(Operator),
 
-    LParenthesis,
+    Void,
+
+    VBar,
+
+    RBrace,
+    LBrace,
+
+    True, 
+    False,
+
+    While,
+
     RParenthesis,
+    LParenthesis,
+
+    RBracket,
+    LBracket, Not,
+
     Comma,
 
     Assign,
     
     If, 
+    Else,
 
     EOS,
 }
@@ -63,7 +88,7 @@ impl Lexer {
         while let Some(c) = self.current() {
             match c {
                 _ if is_operator(c) || is_whitespace(c) => break,
-                '(' | ')' | ',' => break,
+                '(' | ')' | ',' | '|' | '{' | '}' | '[' | ']' | ';' => break,
                 _ => literal.push(c)
             }
 
@@ -72,6 +97,11 @@ impl Lexer {
 
         match &*literal {
             "if" => Token::If,
+            "else" => Token::Else,
+            "void" => Token::Void,
+            "true" => Token::True,
+            "false" => Token::False,
+            "while" => Token::While,
             _ => Token::Id(literal)
         }
     }
@@ -82,7 +112,7 @@ impl Lexer {
         while let Some(c) = self.current() {
             if !is_operator(c) { break; }
             operator.push(c);
-
+            
             self.step()
         }
 
@@ -92,7 +122,14 @@ impl Lexer {
             "*" => Ok(Token::Op(Operator::Mul)),
             "/" => Ok(Token::Op(Operator::Div)),
 
+            "==" => Ok(Token::Op(Operator::Equals)),
+            ">=" => Ok(Token::Op(Operator::GreaterThanOrEquals)),
+            "<=" => Ok(Token::Op(Operator::LessThanOrEquals)),
+            ">"  => Ok(Token::Op(Operator::GreaterThan)),
+            "<"  => Ok(Token::Op(Operator::LessThan)),
+
             "<-" => Ok(Token::Assign),
+            
             _ => Err(format!("Unknown operator: {}", operator))
         }
     }
@@ -140,7 +177,7 @@ impl Lexer {
     fn read_string(&mut self) -> Result<Token, String> {
         self.step();
         let mut string = String::new();
-
+        
         while let Some(c) = self.current() {
             match c {
                 '"' => { 
@@ -162,6 +199,11 @@ impl Lexer {
         match c {
             '(' => { self.step(); Ok(Token::RParenthesis) },
             ')' => { self.step(); Ok(Token::LParenthesis) },
+            '[' => { self.step(); Ok(Token::RBracket) },
+            ']' => { self.step(); Ok(Token::LBracket) },
+            '{' => { self.step(); Ok(Token::RBrace) },
+            '}' => { self.step(); Ok(Token::LBrace) },
+            '|' => { self.step(); Ok(Token::VBar) },
             ',' => { self.step(); Ok(Token::Comma) },
             ';' => { self.step(); Ok(Token::EOS) }
             '"' => self.read_string(),
@@ -187,7 +229,7 @@ impl Lexer {
                 Err(err) => return Err(err)
             }
         }
-        
+
         Ok(tokens)
     }
 

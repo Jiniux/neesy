@@ -5,6 +5,7 @@ use linked_hash_set::LinkedHashSet;
 use std::collections::{HashMap};
 
 use std::rc::Rc;
+use std::cell::RefCell;
 
 #[macro_use] mod errors;
 
@@ -14,6 +15,7 @@ pub enum Value {
     Number(f64),
     Bool(bool),
     Str(String),
+    Array(Rc<RefCell<Vec<Value>>>),
     Function(Rc<LinkedHashSet<String>>, Rc<Vec<Expression>>),
     BuiltinFunction(usize, fn(Vec<Value>) -> Result<Value, String>),
 }
@@ -169,8 +171,60 @@ impl<'parent_scope, 'a> Evaluator<'parent_scope> {
             Expression::Void => Ok(Value::Void),
             Expression::Bool(val) => Ok(Value::Bool(val.clone())),
 
+            Expression::Array(exprs) => Ok(Value::Array(Rc::new({
+                let mut values : Vec<Value> = Vec::new();
+                for expr in exprs {
+                    values.push(self.evaluate(expr)?);
+                }
+                
+                RefCell::new(values)
+            }))),
+
             Expression::FunctionCall(name, params) => {
                 match self.get_value(&name)?.clone() {
+                    Value::Array(arr) => {
+
+                        match params.len() {
+                            0 => {
+                                return Err(format!("Index not specified"))
+                            }
+
+                            1 => {
+                                if let Value::Number(n) = self.evaluate(&params[0])? {
+                                    let array_mutable = arr.borrow();
+                                    
+                                    let index = n as usize;
+                                    if index >= array_mutable.len() {
+                                        return Err(format!("Index out of bounds."))
+                                    } 
+        
+                                    return Ok(array_mutable[index].clone());
+                                } else {
+                                    return Err(format!("Index must be a number."))
+                                }
+                            },
+
+                            2 | _ => {
+                                if let Value::Number(n) = self.evaluate(&params[0])? {
+                                    let result =  self.evaluate(&params[1])?;
+                                    
+                                    let mut array_mutable = arr.borrow_mut();
+
+                                    let index = n as usize;
+                                    if index >= array_mutable.len() {
+                                        return Err(format!("Index out of bounds."))
+                                    }
+
+                                    array_mutable[index] = result;
+
+                                    return Ok(array_mutable[index].clone());
+                                } else {
+                                    return Err(format!("Index must be a number."))
+                                }
+                            }
+                        }
+                    },
+
                     Value::BuiltinFunction(param_count, func) => {
                         let mut resolved_params: Vec<Value> = vec![]; 
                         

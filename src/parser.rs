@@ -43,6 +43,8 @@ pub enum Expression {
     Function(LinkedHashSet<String>, Vec<Expression>),
     FunctionCall(String, Vec<Expression>),
 
+    Array(Vec<Expression>),
+
     If(Box<Expression>, Vec<Expression>, Option<Vec<Expression>>),
     While(Box<Expression>, Vec<Expression>),
     Return(Box<Expression>),
@@ -233,6 +235,33 @@ impl<'a> Parser<'a> {
         Ok(expressions)
     }
 
+    fn parse_array(&mut self) -> Result<Expression, String> {
+        let mut array: Vec<Expression> = Vec::new();
+        
+        loop {
+            array.push(match self.parse_expression(Precedence::Lowest)? {
+                Some(expr) => expr,
+
+                None => return Err(format!("Expected expression"))
+            });
+
+            match self.tokens.peek() {
+                Some(token) => {
+                    match token {
+                        Token::Colon => break,
+                        Token::EOS => { self.tokens.next(); },
+                        
+                        _ =>  return Err(format!("Unexpected {:?}", token))
+                    }
+                },
+
+                None => return Err(format!("Unexpected EOS."))
+            }
+        }
+
+        Ok(Expression::Array(array))
+    }  
+
     fn parse_function(&mut self) -> Result<Expression, String> {
         
         // Parse arguments
@@ -300,6 +329,8 @@ impl<'a> Parser<'a> {
 
                 Token::VBar => Some(self.parse_function()?),
                 Token::RBracket => Some(self.parse_function_call()?),
+                
+                Token::Colon => Some(self.parse_array()?),
 
                 Token::While =>Some(self.parse_while_expression()?),
 
@@ -335,7 +366,7 @@ impl<'a> Parser<'a> {
             loop {
                 if let Some(next_token) = self.tokens.peek() {
                     lhs = match next_token {
-                        Token::EOS | Token::RBrace | Token::LBrace | Token::LBracket => {
+                        Token::EOS | Token::RBrace | Token::LBrace | Token::LBracket | Token::Colon => {
                             break;
                         },
 

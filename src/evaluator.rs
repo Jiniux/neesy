@@ -111,7 +111,7 @@ impl<'parent_scope, 'a> Evaluator<'parent_scope> {
                         if !self.builtin_functions.get(name).is_none() {
                             return cannot_assign_to_builtin_err!(name)
                         }
-
+                        
                         self.variables.insert(name.clone(), value.clone());
                         Ok(value)
                     }

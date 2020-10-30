@@ -42,6 +42,7 @@ pub enum Token {
     RBracket,
     LBracket, Not,
 
+    Colon,
     Comma,
 
     Assign,
@@ -197,6 +198,7 @@ impl Lexer {
         let c = self.chars[self.index];
 
         match c {
+            ':' => { self.step(); Ok(Token::Colon) }
             '(' => { self.step(); Ok(Token::RParenthesis) },
             ')' => { self.step(); Ok(Token::LParenthesis) },
             '[' => { self.step(); Ok(Token::RBracket) },

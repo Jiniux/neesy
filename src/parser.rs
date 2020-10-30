@@ -328,8 +328,8 @@ impl<'a> Parser<'a> {
                 }
 
                 Token::VBar => Some(self.parse_function()?),
-                Token::RBracket => Some(self.parse_function_call()?),
-                
+                Token::RBracket =>  { Some(self.parse_function_call()?) },
+                Token::RBracket => Some(self.parse_function_call()?),         
                 Token::Colon => Some(self.parse_array()?),
 
                 Token::While =>Some(self.parse_while_expression()?),
@@ -352,7 +352,7 @@ impl<'a> Parser<'a> {
 
                 Token::If => Some(self.parse_if_expression()?),
 
-                Token::EOS => return Ok(None),
+                Token::EOS => return self.parse_expression(prec),
 
                 _ => return Err(format!("Expected expression, got {:?}", token)),
             };
